@@ -10,3 +10,5 @@
 /installer/*.zip
 *.o
 tunsafe
+.editorconfig
+
