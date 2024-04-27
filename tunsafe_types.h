@@ -2,7 +2,10 @@
 // Copyright (C) 2018 Ludvig Strigeus <info@tunsafe.com>. All Rights Reserved.
 #ifndef TINYVPN_TYPES_H_
 #define TINYVPN_TYPES_H_
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
 #include <stdint.h>
+#endif
 
 #include "build_config.h"
 #include "tunsafe_config.h"

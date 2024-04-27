@@ -33,6 +33,8 @@
 #include "network_bsd.cpp"
 #include "tunsafe_bsd.cpp"
 #include "ts.cpp"
+#if WITH_BENCHMARK
 #include "benchmark.cpp"
+#endif
 #endif
 

@@ -92,8 +92,8 @@ static bool IsWgCidrAddrSubsetOf(const WgCidrAddr &inner, const WgCidrAddr &oute
 }
 
 bool IsWgCidrAddrSubsetOfAny(const WgCidrAddr &inner, const std::vector<WgCidrAddr> &addr) {
-  for (auto &a : addr)
-    if (IsWgCidrAddrSubsetOf(inner, a))
+  for (std::vector<WgCidrAddr>::const_iterator a = addr.begin(); a != addr.end(); ++a)
+    if (IsWgCidrAddrSubsetOf(inner, *a))
       return true;
   return false;
 }
@@ -311,7 +311,7 @@ bool DnsResolver::Resolve(const char *hostname, IpAddr *result) {
   memset(result, 0, sizeof(IpAddr));
 
   // First check cache
-  for (auto it = cache_.begin(); it != cache_.end(); ++it) {
+  for (std::vector<Entry>::iterator it = cache_.begin(); it != cache_.end(); ++it) {
     if (it->name == hostname) {
 
       *result = it->ip;
@@ -331,7 +331,7 @@ bool DnsResolver::Resolve(const char *hostname, IpAddr *result) {
   for (;;) {
     if (g_dnsresolver_thread.Resolve(hostname, result, &token_)) {
       // add to cache
-      cache_.emplace_back(hostname, *result);
+      cache_.push_back(Entry(hostname, *result));
       RINFO("Resolved %s to %s%s", hostname, PrintIpAddr(*result, buf), "");
       return true;
     }

@@ -30,6 +30,7 @@
 #define WITH_CIPHER_SUITES 0
 
 #define WITH_AVX512_OPTIMIZATIONS 0
+
 #define WITH_BENCHMARK 0
 
 // Use bytell hashmap instead. Only works in 64-bit builds

@@ -27,8 +27,15 @@ static const uint8 kWgInitHash[WG_HASH_LEN] = {0x22,0x11,0xb3,0x61,0x08,0x1a,0xc
 static const uint8 kWgInitChainingKey[WG_HASH_LEN] = {0x60,0xe2,0x6d,0xae,0xf3,0x27,0xef,0xc0,0x2e,0xc3,0x35,0xe2,0xa0,0x25,0xd2,0xd0,0x16,0xeb,0x42,0x06,0xf8,0x72,0x77,0xf5,0x2d,0x38,0xd1,0x98,0x8b,0x78,0xcd,0x36};
 
 ReplayDetector::ReplayDetector() {
+// workaround for lack of atomic variable support
+#if __cplusplus < 201103L
+  WG_ACQUIRE_LOCK(replay_mutex_);
+#endif
   expected_seq_nr_ = 0;
   memset(bitmap_, 0, sizeof(bitmap_));
+#if __cplusplus < 201103L
+  WG_RELEASE_LOCK(replay_mutex_);
+#endif
 }
 
 ReplayDetector::~ReplayDetector() {
@@ -36,7 +43,13 @@ ReplayDetector::~ReplayDetector() {
 
 bool ReplayDetector::CheckReplay(uint64 seq_nr) {
   uint64 slot = seq_nr / BITS_PER_ENTRY;
+#if __cplusplus < 201103L
+  WG_ACQUIRE_LOCK(replay_mutex_);
+#endif
   uint64 expected_seq_nr = expected_seq_nr_;
+#if __cplusplus < 201103L
+  WG_RELEASE_LOCK(replay_mutex_);
+#endif
   if (seq_nr >= expected_seq_nr) {
     uint64 prev_slot = (expected_seq_nr + BITS_PER_ENTRY - 1) / BITS_PER_ENTRY - 1, n;
     if ((n = slot - prev_slot) != 0) {
@@ -45,7 +58,13 @@ bool ReplayDetector::CheckReplay(uint64 seq_nr) {
         bitmap_[(prev_slot + nn) & BITMAP_MASK] = 0;
       } while (--nn);
     }
+#if __cplusplus < 201103L
+  WG_ACQUIRE_LOCK(replay_mutex_);
+#endif
     expected_seq_nr_ = seq_nr + 1;
+#if __cplusplus < 201103L
+  WG_RELEASE_LOCK(replay_mutex_);
+#endif
   } else if (seq_nr + WINDOW_SIZE <= expected_seq_nr) {
     return false;
   }
@@ -118,7 +137,7 @@ std::pair<WgPeer*, WgKeypair*> *WgDevice::LookupPeerInKeyIdLookup(uint32 key_id)
   // This function is only ever called by the main thread, so no need to lock,
   // since the main thread is the only mutator.
   assert(IsMainThread());
-  auto it = key_id_lookup_.find(key_id);
+  WG_HASHTABLE_IMPL<uint32, std::pair<WgPeer*, WgKeypair*>, KeyIdHasher>::iterator it = key_id_lookup_.find(key_id);
   return (it != key_id_lookup_.end() && it->second.second == NULL) ? &it->second : NULL;
 }
 
@@ -126,7 +145,7 @@ WgKeypair *WgDevice::LookupKeypairByKeyId(uint32 key_id) {
   // This function can be called from any thread, so make sure to 
   // lock using the shared lock.
   WG_SCOPED_RWLOCK_SHARED(key_id_lookup_lock_);
-  auto it = key_id_lookup_.find(key_id);
+  WG_HASHTABLE_IMPL<uint32, std::pair<WgPeer*, WgKeypair*>, KeyIdHasher>::iterator it = key_id_lookup_.find(key_id);
   return (it != key_id_lookup_.end()) ? it->second.second : NULL;
 }
 
@@ -196,7 +215,7 @@ void WgDevice::RemoveAllPeers() {
 WgPeer *WgDevice::GetPeerFromPublicKey(const WgPublicKey &pubkey) {
   assert(IsMainThread());
 
-  auto it = peer_id_lookup_.find(pubkey);
+  WG_HASHTABLE_IMPL<WgPublicKey, WgPeer*, WgPublicKeyHasher>::iterator it = peer_id_lookup_.find(pubkey);
   return (it != peer_id_lookup_.end()) ? it->second : NULL;
 }
 
@@ -281,7 +300,7 @@ WgKeypair *WgDevice::LookupKeypairInAddrEntryMap(const IpAddr &addr, uint32 slot
   // Convert IpAddr to WgAddrEntry::IpPort suitable for use in hash.
   WgAddrEntry::IpPort addr_x = ConvertIpAddrToAddrX(addr);
   WG_SCOPED_RWLOCK_SHARED(addr_entry_lookup_lock_);
-  auto it = addr_entry_lookup_.find(addr_x);
+  WG_HASHTABLE_IMPL<WgAddrEntry::IpPort, void*, WgAddrEntry::IpPortHasher>::iterator it = addr_entry_lookup_.find(addr_x);
   if (it == addr_entry_lookup_.end())
     return NULL;
   WgAddrEntry *addr_entry = (WgAddrEntry*)it->second;
@@ -393,8 +412,13 @@ void WgPeer::DelayedDelete(void *x) {
   WgPeer *peer = (WgPeer*)x;
   assert(peer->dev_->IsMainThread());
 
+#if __cplusplus >= 201103L
   if (peer->main_thread_scheduled_ != 0) {
     WG_ACQUIRE_LOCK(peer->dev_->main_thread_scheduled_lock_);
+#else
+  WG_ACQUIRE_LOCK(peer->dev_->main_thread_scheduled_lock_);
+  if (peer->main_thread_scheduled_ != 0) {
+#endif
     // Unlink myself from the main thread scheduled list
     for (WgPeer **pp = &peer->dev_->main_thread_scheduled_; *pp; pp = &(*pp)->main_thread_scheduled_next_) {
       if (*pp == peer) {
@@ -402,8 +426,14 @@ void WgPeer::DelayedDelete(void *x) {
         break;
       }
     }
+#if __cplusplus >= 201103L
     WG_RELEASE_LOCK(peer->dev_->main_thread_scheduled_lock_);
   }
+#else
+  }
+  WG_RELEASE_LOCK(peer->dev_->main_thread_scheduled_lock_);
+#endif
+
   delete peer;
 }
 
@@ -735,7 +765,7 @@ WgPeer *WgPeer::ParseMessageHandshakeResponse(WgDevice *dev, const Packet *packe
   uint8 t[WG_HASH_LEN];
   uint8 k[WG_SYMMETRIC_KEY_LEN];
   WgKeypair *keypair;
-  auto peer_and_keypair = dev->LookupPeerInKeyIdLookup(src->receiver_key_id);
+  std::pair<WgPeer*, WgKeypair*> *peer_and_keypair = dev->LookupPeerInKeyIdLookup(src->receiver_key_id);
   if (peer_and_keypair == NULL)
     return NULL;
   WgPeer *peer = peer_and_keypair->first;
@@ -825,7 +855,7 @@ getout:
 void WgPeer::ParseMessageHandshakeCookie(WgDevice *dev, const MessageHandshakeCookie *src) {
   assert(dev->IsMainThread());
   uint8 cookie[WG_COOKIE_LEN];
-  auto peer_and_keypair = dev->LookupPeerInKeyIdLookup(src->receiver_key_id);
+  std::pair<WgPeer *, WgKeypair *> *peer_and_keypair = dev->LookupPeerInKeyIdLookup(src->receiver_key_id);
   if (!peer_and_keypair)
     return;
   WgPeer *peer = peer_and_keypair->first;
@@ -1355,7 +1385,7 @@ bool WgPeer::AddIp(const WgCidrAddr &cidr_addr) {
     return false;
   }
   if (old_peer) {
-    for (auto it = old_peer->allowed_ips_.begin(); it != old_peer->allowed_ips_.end(); ++it) {
+    for (std::vector<WgCidrAddr>::iterator it = old_peer->allowed_ips_.begin(); it != old_peer->allowed_ips_.end(); ++it) {
       if (WgCidrAddrEquals(*it, cidr_addr)) {
         old_peer->allowed_ips_.erase(it);
         break;
@@ -1369,7 +1399,7 @@ bool WgPeer::AddIp(const WgCidrAddr &cidr_addr) {
 void WgPeer::RemoveAllIps() {
   assert(dev_->IsMainThread());
   WG_ACQUIRE_RWLOCK_EXCLUSIVE(dev_->ip_to_peer_map_lock_);
-  for (auto it = allowed_ips_.begin(); it != allowed_ips_.end(); ++it) {
+  for (std::vector<WgCidrAddr>::iterator it = allowed_ips_.begin(); it != allowed_ips_.end(); ++it) {
     if (it->size == 32) {
       dev_->ip_to_peer_map_.RemoveV4(ReadBE32(it->addr), it->cidr);
     } else if (it->size == 128) {
@@ -1406,7 +1436,11 @@ bool WgPeer::AddCipher(int cipher) {
 
 void WgPeer::ScheduleNewHandshake() {
   // Note, it's possible that the peer has already been marked for delete
+#if __cplusplus < 201103L
+  if (__sync_fetch_and_or(&main_thread_scheduled_, WgPeer::kMainThreadScheduled_ScheduleHandshake) == 0) {
+#else
   if (main_thread_scheduled_.fetch_or(WgPeer::kMainThreadScheduled_ScheduleHandshake) == 0) {
+#endif
     main_thread_scheduled_next_ = NULL;
     WG_ACQUIRE_LOCK(dev_->main_thread_scheduled_lock_);
     *dev_->main_thread_scheduled_last_ = this;

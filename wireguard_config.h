@@ -10,7 +10,11 @@ class WireguardProcessor;
 
 class WgConfig {
 public:
+  #if __cplusplus < 201103L
+  static bool HandleConfigurationProtocolMessage(WireguardProcessor *proc, const std::string &message, std::string *result);
+  #else
   static bool HandleConfigurationProtocolMessage(WireguardProcessor *proc, const std::string &&message, std::string *result);
+  #endif
 private:
   static void HandleConfigurationProtocolGet(WireguardProcessor *proc, std::string *result);
 };

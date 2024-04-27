@@ -142,7 +142,7 @@ bool WireguardProcessor::ConfigureTun() {
   TunInterface::TunConfig config = {0};
   uint32 ipv4_broadcast_addr = 0xffffffff;
 
-  for (auto it = addresses_.begin(); it != addresses_.end(); ++it) {
+  for (std::vector<WgCidrAddr>::iterator it = addresses_.begin(); it != addresses_.end(); ++it) {
     if (it->size == 32) {
       if (it->cidr >= 31) {
         RINFO("TAP is not compatible CIDR /31 or /32. Changing to /24");
@@ -169,7 +169,7 @@ bool WireguardProcessor::ConfigureTun() {
     config.excluded_routes = excluded_ips_;
     // For each peer, add the extra routes to the extra routes table
     for (WgPeer *peer = dev_.first_peer(); peer; peer = peer->next_peer_) {
-      for (auto it = peer->allowed_ips_.begin(); it != peer->allowed_ips_.end(); ++it) {
+      for (std::vector<WgCidrAddr>::iterator it = peer->allowed_ips_.begin(); it != peer->allowed_ips_.end(); ++it) {
         config.included_routes.push_back(*it);
         // If peer has the ::/0 or 0.0.0.0/0 address, disallow endpoint change.
         if (it->cidr == 0)
@@ -187,8 +187,8 @@ bool WireguardProcessor::ConfigureTun() {
 
   if (dns_blocking_) {
     // Block DNS if at least one of the DNS servers is part of included_routes
-    for (const auto &dns : dns_addr_) {
-      WgCidrAddr tmp = WgCidrAddrFromIpAddr(dns);
+    for (std::vector<IpAddr>::iterator dns = dns_addr_.begin(); dns != dns_addr_.end(); ++dns) {
+      WgCidrAddr tmp = WgCidrAddrFromIpAddr(*dns);
       if (IsWgCidrAddrSubsetOfAny(tmp, config.included_routes) && !IsWgCidrAddrSubsetOfAny(tmp, excluded_ips_)) {
         config.block_dns_on_adapters = true;
         break;
@@ -199,7 +199,11 @@ bool WireguardProcessor::ConfigureTun() {
   config.dns = dns_addr_;
 
   TunInterface::TunConfigOut config_out;
+#if __cplusplus < 201103L
+  if (!tun_->Configure(config, &config_out))
+#else
   if (!tun_->Configure(std::move(config), &config_out))
+#endif
     return false;
 
   network_discovery_spoofing_ = config_out.enable_neighbor_discovery_spoofing;
@@ -598,7 +602,7 @@ void WireguardProcessor::RunAllMainThreadScheduled() {
     if (peer->marked_for_delete_)
       continue;
 
-    uint32 ev = peer->main_thread_scheduled_.exchange(0);
+    uint32 ev = __sync_fetch_and_sub(&peer->main_thread_scheduled_, peer->main_thread_scheduled_);
     if (ev & WgPeer::kMainThreadScheduled_ScheduleHandshake) {
       peer->handshake_attempts_ = 0;
       SendHandshakeInitiation(peer);

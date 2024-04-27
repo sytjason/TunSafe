@@ -465,7 +465,7 @@ static void AppendIpToString(const char *value, std::string *result) {
 
 static int ShowUserFriendlyForDevice(char *devname) {
   std::string reply;
-  std::vector<std::pair<char*, char*>> kv;
+  std::vector< std::pair<char*, char*> > kv;
   std::string ips;
 
   if (!CommunicateWithService(devname, "get=1\n\n", &reply))
@@ -593,11 +593,11 @@ static int HandleShowCommand(int argc, char **argv) {
     SplitString(&interfaces_str[0], '\n', &interfaces);
 
     bool want_newline = false;
-    for (char *interfac : interfaces) {
+      for (std::vector<char*>::iterator interfac = interfaces.begin(); interfac != interfaces.end(); interfac++) {
       if (want_newline)
         ansi_printf("\n");
       want_newline = true;
-      if (ShowUserFriendlyForDevice(interfac))
+      if (ShowUserFriendlyForDevice(*interfac))
         return 1;
     }
   } else if (strcmp(argv[0], "interfaces") == 0) {
@@ -605,8 +605,8 @@ static int HandleShowCommand(int argc, char **argv) {
       return 1;
     SplitString(&interfaces_str[0], '\n', &interfaces);
 
-    for (char *interfac : interfaces) {
-      const char *name = GetInterfaceNameFromGuid(interfac);
+    for (std::vector<char*>::iterator interfac = interfaces.begin(); interfac != interfaces.end(); ++interfac) {
+      const char *name = GetInterfaceNameFromGuid(*interfac);
       if (name)
         ansi_printf("%s\n", name);
     }
@@ -698,8 +698,8 @@ static int HandleSetCommand(int argc, char **argv) {
             did_clear_allowed_ips = true;
           }
           SplitString(*argv++, ',', &ss);
-          for (char *x : ss)
-            AppendCommand(&command, "allowed_ip", x);
+          for (std::vector<char*>::iterator x = ss.begin(); x != ss.end(); ++x)
+            AppendCommand(&command, "allowed_ip", *x);
           continue;
         }
       }

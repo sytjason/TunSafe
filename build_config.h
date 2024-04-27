@@ -85,6 +85,10 @@
 #define ARCH_CPU_LITTLE_ENDIAN 1
 #define ARCH_CPU_ALLOW_UNALIGNED 1
 #define ARCH_CPU_NEED_64BIT_ALIGN 1
+#elif defined(__ARMEB__)
+#define ARCH_CPU_ARM_FAMILY 1
+#define ARCH_CPU_32_BITS 1
+#define ARCH_CPU_BIG_ENDIAN 1
 #elif defined(__ARMEL__) || defined(__arm__) && defined(__ARMCC_VERSION)
 #define ARCH_CPU_ARM_FAMILY 1
 #define ARCH_CPU_ARMEL 1

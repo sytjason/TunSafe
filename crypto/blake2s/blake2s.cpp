@@ -14,7 +14,10 @@ https://blake2.net.
 */
 
 #include "stdafx.h"
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
 #include <stdint.h>
+#endif
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>

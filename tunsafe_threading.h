@@ -2,7 +2,9 @@
 // Copyright (C) 2018 Ludvig Strigeus <info@tunsafe.com>. All Rights Reserved.
 #pragma once
 #include "tunsafe_types.h"
+#if __cplusplus >= 201103L
 #include <atomic>
+#endif
 #include <vector>
 #include <assert.h>
 #if !defined(OS_WIN)
@@ -217,7 +219,11 @@ private:
   };
 
   struct CheckpointData {
+    #if __cplusplus < 201103L
+    uint32 value;
+    #else
     std::atomic<uint32> value;
+    #endif
     uint8 align[60];
   };
 

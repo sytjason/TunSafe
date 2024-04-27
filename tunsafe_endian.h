@@ -8,16 +8,39 @@
 #if defined(OS_WIN) && defined(COMPILER_MSVC)
 #include <intrin.h>
 #endif
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
 #include <stdint.h>
+#endif
 
 #if defined(OS_WIN) && defined(COMPILER_MSVC)
 #define ByteSwap16(x) _byteswap_ushort((uint16)x)
 #define ByteSwap32(x) _byteswap_ulong((uint32)x)
 #define ByteSwap64(x) _byteswap_uint64((uint64)x)
-#else
+#elif __HAVE_BUILTIN_BSWAP16__ && __HAVE_BUILTIN_BSWAP32__ && __HAVE_BUILTIN_BSWAP64__
 #define ByteSwap16(x) __builtin_bswap16((uint16)x)
 #define ByteSwap32(x) __builtin_bswap32((uint32)x)
 #define ByteSwap64(x) __builtin_bswap64((uint64)x)
+#else
+#define ByteSwap16(x) ((uint16)(                                 \
+        (((uint16)(x) & (uint16)0x00ffU) << 8) |                 \
+        (((uint16)(x) & (uint16)0xff00U) >> 8)))
+
+#define ByteSwap32(x) ((uint32)(                                 \
+        (((uint32)(x) & (uint32)0x000000ffUL) << 24) |           \
+        (((uint32)(x) & (uint32)0x0000ff00UL) <<  8) |           \
+        (((uint32)(x) & (uint32)0x00ff0000UL) >>  8) |           \
+        (((uint32)(x) & (uint32)0xff000000UL) >> 24)))
+
+#define ByteSwap64(x) ((uint64)(                                   \
+        (((uint64)(x) & (uint64)0x00000000000000ffULL) << 56)   |  \
+        (((uint64)(x) & (uint64)0x000000000000ff00ULL) << 40)   |  \
+        (((uint64)(x) & (uint64)0x0000000000ff0000ULL) << 24)   |  \
+        (((uint64)(x) & (uint64)0x00000000ff000000ULL) <<  8)   |  \
+        (((uint64)(x) & (uint64)0x000000ff00000000ULL) >>  8)   |  \
+        (((uint64)(x) & (uint64)0x0000ff0000000000ULL) >> 24)   |  \
+        (((uint64)(x) & (uint64)0x00ff000000000000ULL) >> 40)   |  \
+        (((uint64)(x) & (uint64)0xff00000000000000ULL) >> 56)))
 #endif
 
 #if defined(ARCH_CPU_LITTLE_ENDIAN)

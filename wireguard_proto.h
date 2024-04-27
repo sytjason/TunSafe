@@ -9,8 +9,12 @@
 #include "tunsafe_threading.h"
 #include "ip_to_peer_map.h"
 #include <vector>
+#if __cplusplus < 201103L
+#include <tr1/unordered_map>
+#else
 #include <unordered_map>
 #include <atomic>
+#endif
 #include <string.h>
 
 #if WITH_BYTELL_HASHMAP
@@ -50,7 +54,11 @@
 #if WITH_BYTELL_HASHMAP
 #define WG_HASHTABLE_IMPL ska::bytell_hash_map
 #else
+#if __cplusplus < 201103L
+#define WG_HASHTABLE_IMPL std::tr1::unordered_map
+#else
 #define WG_HASHTABLE_IMPL std::unordered_map
+#endif
 #endif
 
 enum ProtocolTimeouts {
@@ -602,7 +610,11 @@ private:
   enum {
     kMainThreadScheduled_ScheduleHandshake = 1,
   };
+#if __cplusplus < 201103L
+  uint32 main_thread_scheduled_;
+#else
   std::atomic<uint32> main_thread_scheduled_;
+#endif
   WgPeer *main_thread_scheduled_next_;
 
   // The broadcast address of the IPv4 network, used to block broadcast traffic
@@ -725,7 +737,12 @@ public:
   const uint64 expected_seq_nr() const { return expected_seq_nr_; }
 
 private:
+#if __cplusplus < 201103L
+  WG_DECLARE_LOCK(replay_mutex_);
+  uint64 expected_seq_nr_;
+#else
   std::atomic<uint64> expected_seq_nr_;
+#endif
   uint32 bitmap_[BITMAP_SIZE];
 };
 

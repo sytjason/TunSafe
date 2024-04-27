@@ -47,7 +47,10 @@
  */
 
 #include <string.h>
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
 #include <stdint.h>
+#endif
 #include "curve25519-donna.h"
 
 #ifdef _MSC_VER

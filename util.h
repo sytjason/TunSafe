@@ -37,7 +37,7 @@ template<typename T> static inline T exch_null(T&x) {
 
 bool is_space(uint8_t c);
 void OsGetRandomBytes(uint8 *dst, size_t dst_size);
-bool ParseConfigKeyValue(char *m, std::vector<std::pair<char *, char*>> *result);
+bool ParseConfigKeyValue(char *m, std::vector< std::pair<char *, char*> > *result);
 bool ParseHexString(const char *text, void *data, size_t data_size);
 void PrintHexString(const void *data, size_t data_size, char *result);
 void SplitString(char *s, int separator, std::vector<char*> *components);

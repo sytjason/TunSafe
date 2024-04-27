@@ -138,19 +138,32 @@ void MultithreadedDelayedDelete::Add(DoDeleteFunc *func, void *param) {
 }
 
 void MultithreadedDelayedDelete::Checkpoint(uint32 thread_id) {
+#if __cplusplus < 201103L
+  table_[thread_id].value = 1;
+#else
   table_[thread_id].value.store(1);
+#endif
 }
 
 void MultithreadedDelayedDelete::MainCheckpoint() {
   // Wait for all threads to signal that they reached the checkpoint
   for (size_t i = 0; i < num_threads_; i++) {
-    if (table_[i].value.load() == 0)
+#if __cplusplus < 201103L
+    if (table_[i].value == 0) {
+#else
+    if (table_[i].value.load() == 0) {
+#endif
       return;
+    }
   }
 
   // All threads reached the checkpoint, clear the values
   for (size_t i = 0; i < num_threads_; i++)
+#if __cplusplus < 201103L
+    table_[i].value = 0;
+#else
     table_[i].value.store(0);
+#endif
 
   // Swap curr and next, and delete all nexts.
   lock_.Acquire();
@@ -158,7 +171,7 @@ void MultithreadedDelayedDelete::MainCheckpoint() {
   std::swap(curr_, to_delete_);
   lock_.Release();
 
-  for (auto it = to_delete_.begin(); it != to_delete_.end(); ++it) {
+  for (std::vector<Entry>::iterator it = to_delete_.begin(); it != to_delete_.end(); ++it) {
     it->func(it->param);
   }
   to_delete_.clear();

@@ -40,7 +40,11 @@ public:
   void SetTunDeviceName(const char *name);
 
   // -- from TunInterface
-  virtual bool Configure(const TunConfig &&config, TunConfigOut *out) override;
+#if __cplusplus < 201103L
+  virtual bool Configure(const TunConfig &config, TunConfigOut *out);
+#else
+  virtual bool Configure(const TunConfig &&config, TunConfigOut *out);
+#endif
 
 protected:
   virtual bool InitializeTun(char devname[16]) = 0;

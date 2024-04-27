@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-1.0-only
 // Copyright (C) 2018 Ludvig Strigeus <info@tunsafe.com>. All Rights Reserved.
 #include "tunsafe_bsd.h"
+#include "network_bsd.h"
 #include "tunsafe_endian.h"
 #include "tunsafe_wg_plugin.h"
 #include "util.h"
@@ -36,7 +37,7 @@
 #include <net/if_tun.h>
 #include <net/if_dl.h>
 #elif defined(OS_LINUX)
-#include <linux/if.h>
+// #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <sys/prctl.h>
 #include <linux/rtnetlink.h>
@@ -404,7 +405,11 @@ static bool IsIpv6AddressSet(const void *p) {
 }
  
 // Called to initialize tun
-bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) override {
+#if __cplusplus < 201103L
+bool TunsafeBackendBsd::Configure(const TunConfig &config, TunConfigOut *out) {
+#else
+bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) {
+#endif
   char buf[kSizeOfAddress];
   char buf2[kSizeOfAddress];
 
@@ -420,7 +425,7 @@ bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) o
 
   const WgCidrAddr *ipv4_addr = NULL;
   const WgCidrAddr *ipv6_addr = NULL;
-  for (auto it = config.addresses.begin(); it != config.addresses.end(); ++it) {
+  for (std::vector<WgCidrAddr>::const_iterator it = config.addresses.begin(); it != config.addresses.end(); ++it) {
     if (it->size == 32 && ipv4_addr == NULL)
       ipv4_addr = &*it;
     else if (it->size == 128 && ipv6_addr == NULL)
@@ -437,8 +442,10 @@ bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) o
 
 #if defined(OS_LINUX)
   RunCommand("/sbin/ip address flush dev %s scope global", devname_);
-  for(const WgCidrAddr &a : config.addresses)
-    RunCommand("/sbin/ip address add dev %s %s", devname_, print_ip_prefix(buf, a.size == 32 ? AF_INET : AF_INET6, a.addr, a.cidr));
+  for(std::vector<WgCidrAddr>::const_iterator a = config.addresses.begin(); a != config.addresses.end(); ++a) {
+      RunCommand("/sbin/ip address add dev %s %s", devname_, print_ip_prefix(buf, a->size == 32 ? AF_INET : AF_INET6, a->addr, a->cidr));
+  }
+
   RunCommand("/sbin/ip link set dev %s mtu %d up", devname_, config.mtu);
 #else
   for(const WgCidrAddr &a : config.addresses) {
@@ -455,7 +462,7 @@ bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) o
   char default_iface[16];
   uint32 ipv4_default_gw;
   bool found_ipv4_route = GetDefaultRoute(default_iface, sizeof(default_iface), &ipv4_default_gw);
-  for (auto it = config.excluded_routes.begin(); it != config.excluded_routes.end(); ++it) {
+  for (std::vector<WgCidrAddr>::const_iterator it = config.excluded_routes.begin(); it != config.excluded_routes.end(); ++it) {
     if (it->size == 32) {
       if (!found_ipv4_route) {
         RERROR("Unable to determine default interface.");
@@ -469,7 +476,7 @@ bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) o
   }
 
   // Add all the extra routes
-  for (auto it = config.included_routes.begin(); it != config.included_routes.end(); ++it) {
+  for (std::vector<WgCidrAddr>::const_iterator it = config.included_routes.begin(); it != config.included_routes.end(); ++it) {
     if (it->cidr == 0) {
       if (it->size == 32) {
         AddRoute(0x00000000, 1, ipv4_ip, devname_);
@@ -497,8 +504,13 @@ bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) o
 
   RunPrePostCommand(config.pre_post_commands.post_up);
 
+#if __cplusplus < 201103L
+  pre_down_ = config.pre_post_commands.pre_down;
+  post_down_ = config.pre_post_commands.post_down;
+#else
   pre_down_ = std::move(config.pre_post_commands.pre_down);
   post_down_ = std::move(config.pre_post_commands.post_down);
+#endif
 
   return true;
 }
@@ -508,14 +520,14 @@ void TunsafeBackendBsd::CleanupRoutes() {
 
   RunPrePostCommand(pre_down_);
 
-  for(auto it = cleanup_commands_.begin(); it != cleanup_commands_.end(); ++it) {
+  for(std::vector<RouteInfo>::iterator it = cleanup_commands_.begin(); it != cleanup_commands_.end(); ++it) {
     if (!tun_interface_gone_ || strcmp(it->dev.c_str(), devname_) != 0)
       DelRoute(*it);
   }
 
 #if defined(OS_LINUX)
-  for(const WgCidrAddr &a : addresses_to_remove_)
-    RunCommand("/sbin/ip address del dev %s %s", devname_, print_ip_prefix(buf, a.size == 32 ? AF_INET : AF_INET6, a.addr, a.cidr));
+  for(std::vector<WgCidrAddr>::const_iterator a = addresses_to_remove_.begin(); a != addresses_to_remove_.end(); ++a)
+    RunCommand("/sbin/ip address del dev %s %s", devname_, print_ip_prefix(buf, a->size == 32 ? AF_INET : AF_INET6, a->addr, a->cidr));
 #else
   for(const WgCidrAddr &a : addresses_to_remove_) {
     if (a.size == 32) {
@@ -551,7 +563,7 @@ static bool RunOneCommand(const std::string &cmd) {
 
 bool TunsafeBackendBsd::RunPrePostCommand(const std::vector<std::string> &vec) {
   bool success = true;
-  for (auto it = vec.begin(); it != vec.end(); ++it) {
+  for (std::vector<std::string>::const_iterator it = vec.begin(); it != vec.end(); ++it) {
     success &= RunOneCommand(*it);
   }
   return success;
@@ -655,25 +667,25 @@ public:
   virtual ~TunsafeBackendBsdImpl();
 
   void RunLoop();
-  virtual bool InitializeTun(char devname[16]) override;
+  virtual bool InitializeTun(char devname[16]);
 
   // -- from TunInterface
-  virtual void WriteTunPacket(Packet *packet) override;
+  virtual void WriteTunPacket(Packet *packet);
 
   // -- from UdpInterface
-  virtual bool Configure(int listen_port_udp, int listen_port_tcp) override;
-  virtual void WriteUdpPacket(Packet *packet) override;
+  virtual bool Configure(int listen_port_udp, int listen_port_tcp);
+  virtual void WriteUdpPacket(Packet *packet);
 
   // -- from NetworkBsdDelegate
-  virtual void OnSecondLoop(uint64 now) override;
-  virtual void RunAllMainThreadScheduled() override;
+  virtual void OnSecondLoop(uint64 now);
+  virtual void RunAllMainThreadScheduled();
 
   // -- from ProcessorDelegate
-  virtual void OnConnected() override;
-  virtual void OnConnectionRetry(uint32 attempts) override;
+  virtual void OnConnected();
+  virtual void OnConnectionRetry(uint32 attempts);
 
   // -- from PluginDelegate
-  virtual void OnRequestToken(WgPeer *peer, uint32 type) override;
+  virtual void OnRequestToken(WgPeer *peer, uint32 type);
 
   WireguardProcessor *processor() { return &processor_; }
 
@@ -763,8 +775,9 @@ void TunsafeBackendBsdImpl::RunAllMainThreadScheduled() {
 void TunsafeBackendBsdImpl::OnConnected() {
   if (!is_connected_) {
     const WgCidrAddr *ipv4_addr = NULL;
-    for (const WgCidrAddr &x : processor_.addr()) {
-      if (x.size == 32) { ipv4_addr = &x; break; }
+    const std::vector<WgCidrAddr> &processorAddr = processor_.addr();
+    for (std::vector<WgCidrAddr>::const_iterator x = processorAddr.begin(); x != processorAddr.end(); ++x) {
+      if (x->size == 32) { ipv4_addr = &(*x); break; }
     }
     uint32 ipv4_ip = ipv4_addr ? ReadBE32(ipv4_addr->addr) : 0;
     char buf[kSizeOfAddress];
@@ -816,18 +829,20 @@ void TunsafeBackendBsdImpl::CloseOrphanTcpConnections() {
       lookup.erase(ConvertIpAddrToAddrX(peer->endpoint()));
   }
   // The tcp connections that are still in the hashtable can be deleted
-  for(const auto &it : lookup)
-    delete (TcpSocketBsd *)it.second;
+  for(WG_HASHTABLE_IMPL<WgAddrEntry::IpPort, void*, WgAddrEntry::IpPortHasher>::const_iterator it = lookup.begin(); it != lookup.end(); ++it)
+    delete (TcpSocketBsd *)(it->second);
 }
 int main(int argc, char **argv) {
   CommandLineOutput cmd = {0};
 
   InitCpuFeatures();
 
+#if WITH_BENCHMARK
   if (argc == 2 && strcmp(argv[1], "--benchmark") == 0) {
     Benchmark();
     return 0;
   }
+#endif
 
   int rv = HandleCommandLine(argc, argv, &cmd);
   if (!cmd.filename_to_load)

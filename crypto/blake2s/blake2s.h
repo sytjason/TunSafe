@@ -16,7 +16,10 @@ https://blake2.net.
 #define BLAKE2_H
 
 #include <stddef.h>
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
 #include <stdint.h>
+#endif
 #include "tunsafe_types.h"
 #if defined(_MSC_VER)
 #define BLAKE2_PACKED(x) __pragma(pack(push, 1)) x __pragma(pack(pop))

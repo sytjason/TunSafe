@@ -12,7 +12,7 @@
 
 class WgFileParser {
 public:
-  WgFileParser(WireguardProcessor *wg, DnsResolver *resolver) : wg_(wg), dns_resolver_(resolver) {}
+  WgFileParser(WireguardProcessor *wg, DnsResolver *resolver) : wg_(wg), dns_resolver_(resolver), peer_(NULL), had_interface_(false) {}
   bool ParseFlag(const char *group, const char *key, char *value);
   WireguardProcessor *wg_;
   
@@ -22,9 +22,9 @@ public:
     uint8 psk[32];
   };
   Peer pi_;
-  WgPeer *peer_ = NULL;
+  WgPeer *peer_;
   DnsResolver *dns_resolver_;
-  bool had_interface_ = false;
+  bool had_interface_;
 };
 
 static bool ParseBoolean(const char *str, bool *value) {
@@ -188,13 +188,13 @@ bool WgFileParser::ParseFlag(const char *group, const char *key, char *value) {
       wg_->dev().packet_obfuscator().set_obfuscate_tcp(v);
 
     } else if (strcmp(key, "PostUp") == 0) {
-      wg_->prepost().post_up.emplace_back(value);
+      wg_->prepost().post_up.push_back(value);
     } else if (strcmp(key, "PostDown") == 0) {
-      wg_->prepost().post_down.emplace_back(value);
+      wg_->prepost().post_down.push_back(value);
     } else if (strcmp(key, "PreUp") == 0) {
-      wg_->prepost().pre_up.emplace_back(value);
+      wg_->prepost().pre_up.push_back(value);
     } else if (strcmp(key, "PreDown") == 0) {
-      wg_->prepost().pre_down.emplace_back(value);
+      wg_->prepost().pre_down.push_back(value);
     } else if (strcmp(key, "ExcludedIPs") == 0) {
       SplitString(value, ',', &ss);
       for (size_t i = 0; i < ss.size(); i++) {
@@ -414,8 +414,8 @@ void WgConfig::HandleConfigurationProtocolGet(WireguardProcessor *proc, std::str
   CmsgAppendHex(result, "private_key", proc->dev_.s_priv_, sizeof(proc->dev_.s_priv_));
   if (proc->listen_port_)
     CmsgAppendFmt(result, "listen_port=%d", proc->listen_port_);
-  for(const WgCidrAddr &x : proc->addresses_)
-    CmsgAppendFmt(result, "address=%s", PrintWgCidrAddr(x, buf));
+  for(std::vector<WgCidrAddr>::const_iterator x = proc->addresses_.begin(); x != proc->addresses_.end(); ++x)
+    CmsgAppendFmt(result, "address=%s", PrintWgCidrAddr(*x, buf));
   
   for (WgPeer *peer = proc->dev_.peers_; peer; peer = peer->next_peer_) {
     WG_SCOPED_LOCK(peer->mutex_);
@@ -425,7 +425,7 @@ void WgConfig::HandleConfigurationProtocolGet(WireguardProcessor *proc, std::str
       CmsgAppendHex(result, "preshared_key", peer->preshared_key_, sizeof(peer->preshared_key_));
     if (peer->tx_bytes_ | peer->rx_bytes_)
       CmsgAppendFmt(result, "tx_bytes=%lld\nrx_bytes=%lld", peer->tx_bytes_, peer->rx_bytes_);
-    for (auto it = peer->allowed_ips_.begin(); it != peer->allowed_ips_.end(); ++it)
+    for (std::vector<WgCidrAddr>::iterator it = peer->allowed_ips_.begin(); it != peer->allowed_ips_.end(); ++it)
       CmsgAppendFmt(result, "allowed_ip=%s", PrintWgCidrAddr(*it, buf));
     if (peer->persistent_keepalive_ms_)
       CmsgAppendFmt(result, "persistent_keepalive_interval=%d", peer->persistent_keepalive_ms_ / 1000);
@@ -443,9 +443,14 @@ void WgConfig::HandleConfigurationProtocolGet(WireguardProcessor *proc, std::str
   CmsgAppendFmt(result, "protocol_version=1");
 }
 
+#if __cplusplus < 201103L
+bool WgConfig::HandleConfigurationProtocolMessage(WireguardProcessor *proc, const std::string &message, std::string *result) {
+  std::string message_copy = message;
+#else
 bool WgConfig::HandleConfigurationProtocolMessage(WireguardProcessor *proc, const std::string &&message, std::string *result) {
   std::string message_copy(std::move(message));
-  std::vector<std::pair<char *, char*>> kv;
+#endif
+  std::vector< std::pair<char *, char*> > kv;
   bool is_set = false;
   bool did_set_address = false;
   WgPeer *peer = NULL;
@@ -459,8 +464,8 @@ bool WgConfig::HandleConfigurationProtocolMessage(WireguardProcessor *proc, cons
   if (!ParseConfigKeyValue(&message_copy[0], &kv))
     return false;
   
-  for (auto it : kv) {
-    char *key = it.first, *value = it.second;
+  for (std::vector< std::pair<char *, char *> >::iterator it = kv.begin(); it != kv.end(); ++it) {
+    char *key = it->first, *value = it->second;
     if (strcmp(key, "get") == 0) {
       if (strcmp(value, "1") != 0)
         goto getout_fail;

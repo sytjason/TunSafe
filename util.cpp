@@ -332,7 +332,7 @@ void OsGetRandomBytes(uint8 *data, size_t data_size) {
 #endif
 }
 
-bool ParseConfigKeyValue(char *m, std::vector<std::pair<char *, char*>> *result) {
+bool ParseConfigKeyValue(char *m, std::vector< std::pair<char*, char*> > *result) {
   for (;;) {
     char *nl = strchr(m, '\n');
     if (nl)
@@ -342,7 +342,7 @@ bool ParseConfigKeyValue(char *m, std::vector<std::pair<char *, char*>> *result)
       if (value == NULL)
         return false;
       *value++ = '\0';
-      result->emplace_back(m, value);
+      result->push_back(std::pair<char*, char*>(m, value));
     }
     if (!nl)
       return true;

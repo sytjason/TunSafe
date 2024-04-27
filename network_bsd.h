@@ -8,6 +8,7 @@
 #include <sys/uio.h>
 #include <string>
 #include "network_common.h"
+#include "wireguard_proto.h"
 
 class BaseSocketBsd;
 class TcpSocketBsd;
@@ -36,6 +37,7 @@ public:
 
   explicit NetworkBsd(NetworkBsdDelegate *delegate, int max_sockets);
   ~NetworkBsd();
+
 
   void RunLoop(const sigset_t *sigmask);
   void PostExit() { exit_ = true; }
@@ -67,7 +69,7 @@ private:
 
   SimplePacketPool packet_pool_;
   NetworkBsdDelegate *delegate_;
-  
+
   struct pollfd *pollfd_;
   BaseSocketBsd **sockets_;
   BaseSocketBsd **roundrobin_;
@@ -156,7 +158,7 @@ public:
   bool DoWrite();
 
   void WritePacket(Packet *packet);
-  
+
 private:
   bool udp_readable_, udp_writable_;
   Packet *udp_queue_, **udp_queue_end_;
@@ -172,7 +174,7 @@ public:
   bool Start(const char *path, bool *flag_to_set);
   void Stop();
   bool Poll(const char *path) { return false; }
- 
+
 private:
   static void *RunThread(void *arg);
   void *RunThreadInner();
@@ -274,7 +276,7 @@ private:
   bool want_connect_;
   uint8 handshake_attempts_;
   uint32 handshake_timestamp_;
-  
+
   uint wqueue_packets_;
   Packet *wqueue_, **wqueue_end_;
   TcpSocketBsd *next_;
@@ -301,8 +303,15 @@ private:
     CallbackState *next;
   };
   int pipe_fds_[2];
+  #if __cpluscplus < 201103L
+  CallbackState* injected_cb_;
+  WG_DECLARE_LOCK(cb_lock_);
+  #else
   std::atomic<CallbackState*> injected_cb_;
+  #endif
 };
+
+void SetThreadName(const char *name);
 
 
 #endif  // TUNSAFE_NETWORK_BSD_H_

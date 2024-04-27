@@ -4,7 +4,7 @@
 /*.opensdf
 /*.suo
 /.vs/
-/build/
+/build/*
 /*.psess
 /*.vspx
 /installer/*.zip

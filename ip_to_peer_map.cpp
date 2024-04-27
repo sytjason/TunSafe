@@ -22,7 +22,7 @@ void *IpToPeerMap::InsertV4(uint32 ip, int cidr, void *peer) {
 
 void *IpToPeerMap::InsertV6(const void *addr, int cidr, void *peer) {
   Entry6 e;
-  for (auto it = ipv6_.begin(); it != ipv6_.end(); ++it) {
+  for (std::vector<Entry6>::iterator it = ipv6_.begin(); it != ipv6_.end(); ++it) {
     if (it->cidr_len == cidr && memcmp(it->ip, addr, 16) == 0)
       return exch(it->peer, peer);
   }
@@ -42,7 +42,7 @@ void IpToPeerMap::RemoveV4(uint32 ip, int cidr) {
 }
 
 void IpToPeerMap::RemoveV6(const void *addr, int cidr) {
-  for (auto it = ipv6_.begin(); it != ipv6_.end(); ++it) {
+  for (std::vector<Entry6>::iterator it = ipv6_.begin(); it != ipv6_.end(); ++it) {
     if (it->cidr_len == cidr && memcmp(it->ip, addr, 16) == 0) {
       ipv6_.erase(it);
       return;
@@ -59,7 +59,7 @@ static int CalculateIPv6CommonPrefix(const uint8 *a, const uint8 *b) {
 void *IpToPeerMap::LookupV6(const void *addr) {
   int best_len = 0;
   void *best_peer = NULL;
-  for (auto it = ipv6_.begin(); it != ipv6_.end(); ++it) {
+  for (std::vector<Entry6>::iterator it = ipv6_.begin(); it != ipv6_.end(); ++it) {
     int len = CalculateIPv6CommonPrefix((const uint8*)addr, it->ip);
     if (len >= it->cidr_len && len >= best_len) {
       best_len = len;
@@ -106,7 +106,13 @@ static uint32 make_cidr_mask(uint8 cidr) {
 #define VALUE_FROM_OLEAF(n) ((void*)((intptr_t)(n) - 1))
 
 static RoutingTrie32::Node *NewNode(uint32 key, int pos, int bits) {
+  #if _cplusplus < 201103L
+  size_t offset_per_child = offsetof(RoutingTrie32::Node, child[1]) - sizeof(RoutingTrie32::Node);
+  uint32 n_child = 1U << bits;
+  RoutingTrie32::Node *n = (RoutingTrie32::Node *)malloc(sizeof(RoutingTrie32::Node) + n_child * offset_per_child);
+  #else
   RoutingTrie32::Node *n = (RoutingTrie32::Node *)malloc(offsetof(RoutingTrie32::Node, child[(uint32)(1U << bits)]));
+  #endif
   if (n) {
     n->parent = NULL;
     n->pos = pos;
