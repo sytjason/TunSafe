@@ -598,7 +598,7 @@ void WgPeer::CreateMessageHandshakeInitiation(Packet *packet) {
   packet->size = (unsigned)(sizeof(MessageHandshakeInitiation) + extfield_size);
 
   dst->sender_key_id = dev_->InsertInKeyIdLookup(this, NULL);
-  dst->type = MESSAGE_HANDSHAKE_INITIATION;
+  dst->type = ToLE32(MESSAGE_HANDSHAKE_INITIATION);
   memzero_crypto(k, sizeof(k));
   WriteMacToPacket((uint8*)dst, (MessageMacs*)((uint8*)&dst->mac + extfield_size));
 }

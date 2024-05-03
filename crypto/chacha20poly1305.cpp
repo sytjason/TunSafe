@@ -32,7 +32,7 @@ enum {
 #endif
 
 #ifndef CHACHA20_WITH_ASM
-#define CHACHA20_WITH_ASM 1
+#define CHACHA20_WITH_ASM 0
 #endif  // CHACHA20_WITH_ASM
 
 
@@ -562,12 +562,19 @@ struct ChaChaState {
 
 static inline void InitializeChaChaState(ChaChaState *st, const uint8 key[CHACHA20POLY1305_KEYLEN], uint64 nonce) {
   uint64 le_nonce = ToLE64(nonce);
-  WriteLE64((uint8*)st, 0x3320646e61707865);
-  WriteLE64((uint8*)st + 8, 0x6b20657479622d32);
-  Write64((uint8*)st + 16, Read64(key + 0));
-  Write64((uint8*)st + 24, Read64(key + 8));
-  Write64((uint8*)st + 32, Read64(key + 16));
-  Write64((uint8*)st + 40, Read64(key + 24));
+  Write32((uint8*)st     , 0x61707865);
+  Write32((uint8*)st +  4, 0x3320646e);
+  Write32((uint8*)st +  8, 0x79622d32);
+  Write32((uint8*)st + 12, 0x6b206574);
+  Write32((uint8*)st + 16, ReadLE32(key + 0));
+  Write32((uint8*)st + 20, ReadLE32(key + 4));
+  Write32((uint8*)st + 24, ReadLE32(key + 8));
+  Write32((uint8*)st + 28, ReadLE32(key + 12));
+  Write32((uint8*)st + 32, ReadLE32(key + 16));
+  Write32((uint8*)st + 36, ReadLE32(key + 20));
+  Write32((uint8*)st + 40, ReadLE32(key + 24));
+  Write32((uint8*)st + 44, ReadLE32(key + 28));
+
   Write64((uint8*)st + 48, 0);
   Write64((uint8*)st + 56, Read64((uint8*)&le_nonce));
 
