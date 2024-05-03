@@ -303,7 +303,7 @@ private:
     CallbackState *next;
   };
   int pipe_fds_[2];
-  #if __cpluscplus < 201103L
+  #if !defined(__clang__) && __cpluscplus < 201103L
   CallbackState* injected_cb_;
   WG_DECLARE_LOCK(cb_lock_);
   #else

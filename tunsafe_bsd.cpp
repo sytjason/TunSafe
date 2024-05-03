@@ -405,7 +405,7 @@ static bool IsIpv6AddressSet(const void *p) {
 }
  
 // Called to initialize tun
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
 bool TunsafeBackendBsd::Configure(const TunConfig &config, TunConfigOut *out) {
 #else
 bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) {
@@ -504,7 +504,7 @@ bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) {
 
   RunPrePostCommand(config.pre_post_commands.post_up);
 
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   pre_down_ = config.pre_post_commands.pre_down;
   post_down_ = config.pre_post_commands.post_down;
 #else

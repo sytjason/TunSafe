@@ -443,7 +443,7 @@ void WgConfig::HandleConfigurationProtocolGet(WireguardProcessor *proc, std::str
   CmsgAppendFmt(result, "protocol_version=1");
 }
 
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
 bool WgConfig::HandleConfigurationProtocolMessage(WireguardProcessor *proc, const std::string &message, std::string *result) {
   std::string message_copy = message;
 #else

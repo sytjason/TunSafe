@@ -9,7 +9,7 @@
 #include "tunsafe_threading.h"
 #include "ip_to_peer_map.h"
 #include <vector>
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
 #include <tr1/unordered_map>
 #else
 #include <unordered_map>
@@ -54,7 +54,7 @@
 #if WITH_BYTELL_HASHMAP
 #define WG_HASHTABLE_IMPL ska::bytell_hash_map
 #else
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
 #define WG_HASHTABLE_IMPL std::tr1::unordered_map
 #else
 #define WG_HASHTABLE_IMPL std::unordered_map
@@ -610,7 +610,7 @@ private:
   enum {
     kMainThreadScheduled_ScheduleHandshake = 1,
   };
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   uint32 main_thread_scheduled_;
 #else
   std::atomic<uint32> main_thread_scheduled_;
@@ -737,7 +737,7 @@ public:
   const uint64 expected_seq_nr() const { return expected_seq_nr_; }
 
 private:
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   WG_DECLARE_LOCK(replay_mutex_);
   uint64 expected_seq_nr_;
 #else

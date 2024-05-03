@@ -199,7 +199,7 @@ bool WireguardProcessor::ConfigureTun() {
   config.dns = dns_addr_;
 
   TunInterface::TunConfigOut config_out;
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   if (!tun_->Configure(config, &config_out))
 #else
   if (!tun_->Configure(std::move(config), &config_out))
@@ -602,7 +602,11 @@ void WireguardProcessor::RunAllMainThreadScheduled() {
     if (peer->marked_for_delete_)
       continue;
 
+#if !defined(__clang__) && __cplusplus < 201103L
     uint32 ev = __sync_fetch_and_sub(&peer->main_thread_scheduled_, peer->main_thread_scheduled_);
+#else
+    uint32 ev = peer->main_thread_scheduled_.exchange(0);
+#endif
     if (ev & WgPeer::kMainThreadScheduled_ScheduleHandshake) {
       peer->handshake_attempts_ = 0;
       SendHandshakeInitiation(peer);
@@ -1011,7 +1015,7 @@ WireguardProcessor::PacketResult WireguardProcessor::CheckIncomingHandshakeRateL
   WgRateLimit::RateLimitResult rr = dev_.rate_limiter()->CheckRateLimit(GetIpForRateLimit(packet));
 
   if ((overload && rr.is_rate_limited()) || !dev_.CheckCookieMac1(packet)) {
-    DPRINTF("Rate limited or cookie mac failed!");
+    DPRINTF("Rate limited or cookie mac failed!\n");
     stats_.invalid_packets_in++;
     stats_.invalid_bytes_in += packet->size;
     return kPacketResult_Free;
@@ -1019,7 +1023,7 @@ WireguardProcessor::PacketResult WireguardProcessor::CheckIncomingHandshakeRateL
 
   dev_.rate_limiter()->CommitResult(rr);
   if (overload && !rr.is_first_ip() && !dev_.CheckCookieMac2(packet)) {
-    DPRINTF("Responding with cookie message");
+    DPRINTF("Responding with cookie message\n");
     dev_.CreateCookieMessage((MessageHandshakeCookie*)packet->data, packet, ((MessageHandshakeInitiation*)packet->data)->sender_key_id);
     packet->size = sizeof(MessageHandshakeCookie);
     PrepareOutgoingHandshakePacket(NULL, packet);
@@ -1045,6 +1049,7 @@ WireguardProcessor::PacketResult WireguardProcessor::HandleHandshakeInitiationPa
 
     return kPacketResult_ForwardUdp;
   } else {
+    DPRINTF("Receive not peer packets, don't forward\n");
     stats_.invalid_packets_in++;
     stats_.invalid_bytes_in += original_size;
     return kPacketResult_Free;

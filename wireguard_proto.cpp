@@ -28,12 +28,12 @@ static const uint8 kWgInitChainingKey[WG_HASH_LEN] = {0x60,0xe2,0x6d,0xae,0xf3,0
 
 ReplayDetector::ReplayDetector() {
 // workaround for lack of atomic variable support
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   WG_ACQUIRE_LOCK(replay_mutex_);
 #endif
   expected_seq_nr_ = 0;
   memset(bitmap_, 0, sizeof(bitmap_));
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   WG_RELEASE_LOCK(replay_mutex_);
 #endif
 }
@@ -43,11 +43,11 @@ ReplayDetector::~ReplayDetector() {
 
 bool ReplayDetector::CheckReplay(uint64 seq_nr) {
   uint64 slot = seq_nr / BITS_PER_ENTRY;
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   WG_ACQUIRE_LOCK(replay_mutex_);
 #endif
   uint64 expected_seq_nr = expected_seq_nr_;
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   WG_RELEASE_LOCK(replay_mutex_);
 #endif
   if (seq_nr >= expected_seq_nr) {
@@ -58,11 +58,11 @@ bool ReplayDetector::CheckReplay(uint64 seq_nr) {
         bitmap_[(prev_slot + nn) & BITMAP_MASK] = 0;
       } while (--nn);
     }
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   WG_ACQUIRE_LOCK(replay_mutex_);
 #endif
     expected_seq_nr_ = seq_nr + 1;
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   WG_RELEASE_LOCK(replay_mutex_);
 #endif
   } else if (seq_nr + WINDOW_SIZE <= expected_seq_nr) {
@@ -412,7 +412,7 @@ void WgPeer::DelayedDelete(void *x) {
   WgPeer *peer = (WgPeer*)x;
   assert(peer->dev_->IsMainThread());
 
-#if __cplusplus >= 201103L
+#if !defined(__clang__) && __cplusplus >= 201103L
   if (peer->main_thread_scheduled_ != 0) {
     WG_ACQUIRE_LOCK(peer->dev_->main_thread_scheduled_lock_);
 #else
@@ -426,7 +426,7 @@ void WgPeer::DelayedDelete(void *x) {
         break;
       }
     }
-#if __cplusplus >= 201103L
+#if !defined(__clang__) && __cplusplus >= 201103L
     WG_RELEASE_LOCK(peer->dev_->main_thread_scheduled_lock_);
   }
 #else
@@ -893,6 +893,7 @@ int WgPeer::WriteHandshakeExtension(uint8 *dst, WgKeypair *keypair) {
         dst += (WG_FEATURES_COUNT + 3) >> 2;
       }
     }
+
     if (WITH_CIPHER_SUITES) {
       // Ordered list of cipher suites
       size_t ciphers = num_ciphers_;
@@ -1436,7 +1437,7 @@ bool WgPeer::AddCipher(int cipher) {
 
 void WgPeer::ScheduleNewHandshake() {
   // Note, it's possible that the peer has already been marked for delete
-#if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   if (__sync_fetch_and_or(&main_thread_scheduled_, WgPeer::kMainThreadScheduled_ScheduleHandshake) == 0) {
 #else
   if (main_thread_scheduled_.fetch_or(WgPeer::kMainThreadScheduled_ScheduleHandshake) == 0) {

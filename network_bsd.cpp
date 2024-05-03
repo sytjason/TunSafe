@@ -745,11 +745,11 @@ bool UnixDomainSocketChannelBsd::HandleEventsInner(int revents) {
     if (message_end) {
       if (message_end != &inbuf_[inbuf_.size()])
         return false;  // trailing data?
-      #if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
       WgConfig::HandleConfigurationProtocolMessage(processor_, inbuf_, &outbuf_);
-      #else
+#else
       WgConfig::HandleConfigurationProtocolMessage(processor_, std::move(inbuf_), &outbuf_);
-      #endif
+#endif
       if (!outbuf_.size())
         return false;
       SetPollFlags(POLLOUT);
@@ -1115,14 +1115,14 @@ void NotificationPipeBsd::InjectCallback(CallbackFunc *func, void *param) {
   st->func = func;
   st->param = param;
   // todo: support multiple writers?
-  #if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   WG_ACQUIRE_LOCK(cb_lock_);
-  #endif
+#endif
   st->next = injected_cb_;
   injected_cb_ = st;
-  #if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
   WG_RELEASE_LOCK(cb_lock_);
-  #endif
+#endif
   write(pipe_fds_[1], "", 1);
 }
 
@@ -1137,14 +1137,14 @@ void NotificationPipeBsd::HandleEvents(int revents) {
   } else if (revents & POLLIN) {
     char tmp[64];
     read(fd_, tmp, sizeof(tmp));
-    #if __cplusplus < 201103L
+#if !defined(__clang__) && __cplusplus < 201103L
     WG_ACQUIRE_LOCK(cb_lock_);
     CallbackState *cb = injected_cb_;
     injected_cb_ = NULL;
     WG_RELEASE_LOCK(cb_lock_);
-    #else
+#else
     CallbackState *cb = injected_cb_.exchange(NULL);
-    #endif
+#endif
     if (cb) {
       do {
         CallbackState *next = cb->next;
