@@ -273,7 +273,7 @@ void RINFO(const char *msg, ...) {
     g_logger(0, buf);
   } else {
     fputs(buf, stderr);
-    fputs("\n", stderr);
+    // fputs("\n", stderr);
   }
 }
 
