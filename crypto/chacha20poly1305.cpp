@@ -576,7 +576,8 @@ static inline void InitializeChaChaState(ChaChaState *st, const uint8 key[CHACHA
   Write32((uint8*)st + 44, ReadLE32(key + 28));
 
   Write64((uint8*)st + 48, 0);
-  Write64((uint8*)st + 56, Read64((uint8*)&le_nonce));
+  Write32((uint8*)st + 56, *((uint32*)((uint8*)&nonce + 4)));
+  Write32((uint8*)st + 60, *((uint32*)((uint8*)&nonce + 0)));
 
   Write64((uint8*)st + 64 + 0 * 8, 0);
   Write64((uint8*)st + 64 + 1 * 8, 0);
