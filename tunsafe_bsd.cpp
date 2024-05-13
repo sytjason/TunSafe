@@ -462,6 +462,7 @@ bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) {
   char default_iface[16];
   uint32 ipv4_default_gw;
   bool found_ipv4_route = GetDefaultRoute(default_iface, sizeof(default_iface), &ipv4_default_gw);
+  goto SKIP_ROUTE;
   for (std::vector<WgCidrAddr>::const_iterator it = config.excluded_routes.begin(); it != config.excluded_routes.end(); ++it) {
     if (it->size == 32) {
       if (!found_ipv4_route) {
@@ -475,6 +476,7 @@ bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) {
     }
   }
 
+  SKIP_ROUTE:
   // Add all the extra routes
   for (std::vector<WgCidrAddr>::const_iterator it = config.included_routes.begin(); it != config.included_routes.end(); ++it) {
     if (it->cidr == 0) {
