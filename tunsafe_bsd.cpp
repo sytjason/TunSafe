@@ -279,7 +279,7 @@ int open_tun(char *devname, size_t devname_size) {
     }
     close(fd);
   }
-  return -1;  
+  return -1;
 }
 
 #elif defined(OS_FREEBSD)
@@ -403,7 +403,7 @@ void TunsafeBackendBsd::DelRoute(const RouteInfo &cd) {
 static bool IsIpv6AddressSet(const void *p) {
   return (ReadLE64(p) | ReadLE64((char*)p + 8)) != 0;
 }
- 
+
 // Called to initialize tun
 #if !defined(__clang__) && __cplusplus < 201103L
 bool TunsafeBackendBsd::Configure(const TunConfig &config, TunConfigOut *out) {
@@ -704,13 +704,13 @@ private:
   TcpSocketListenerBsd tcp_socket_listener_;
 };
 
-TunsafeBackendBsdImpl::TunsafeBackendBsdImpl() 
+TunsafeBackendBsdImpl::TunsafeBackendBsdImpl()
     : is_connected_(false),
       close_orphan_counter_(0),
       plugin_(CreateTunsafePlugin(this, &processor_)),
       processor_(this, this, this),
       network_(this, 1000),
-      tun_(&network_, &processor_), 
+      tun_(&network_, &processor_),
       udp_(&network_, &processor_),
       unix_socket_listener_(&network_, &processor_),
       tcp_socket_listener_(&network_, &processor_) {
@@ -729,7 +729,7 @@ bool TunsafeBackendBsdImpl::InitializeTun(char devname[16]) {
     return false;
   }
   unix_socket_listener_.Initialize(devname);
-  return true;  
+  return true;
 }
 
 void TunsafeBackendBsdImpl::WriteTunPacket(Packet *packet) {
@@ -738,7 +738,7 @@ void TunsafeBackendBsdImpl::WriteTunPacket(Packet *packet) {
 
 // Called to initialize udp
 bool TunsafeBackendBsdImpl::Configure(int listen_port, int listen_port_tcp) {
-  return udp_.Initialize(listen_port) && 
+  return udp_.Initialize(listen_port) &&
          (listen_port_tcp == 0 || tcp_socket_listener_.Initialize(listen_port_tcp));
 }
 
@@ -821,7 +821,7 @@ void TunsafeBackendBsdImpl::CloseOrphanTcpConnections() {
   }
   if (lookup.empty())
     return;
-  // For each peer, check if it has an endpoint that matches 
+  // For each peer, check if it has an endpoint that matches
   // an entry in the lookup table, and delete it from the lookup
   // table.
   for(WgPeer *peer = processor_.dev().first_peer(); peer; peer = peer->next_peer()) {
@@ -847,7 +847,7 @@ int main(int argc, char **argv) {
   int rv = HandleCommandLine(argc, argv, &cmd);
   if (!cmd.filename_to_load)
     return rv;
-  
+
 #if defined(OS_MACOSX)
   InitOsxGetMilliseconds();
 #endif
@@ -877,4 +877,3 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
