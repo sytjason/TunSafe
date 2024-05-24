@@ -315,7 +315,7 @@ bool DnsResolver::Resolve(const char *hostname, IpAddr *result) {
     if (it->name == hostname) {
 
       *result = it->ip;
-      RINFO("Resolved %s to %s%s", hostname, PrintIpAddr(*result, buf), " (cached)");
+      RINFO("Resolved %s to %s%s\n", hostname, PrintIpAddr(*result, buf), " (cached)");
       return true;
     }
   }
@@ -332,13 +332,13 @@ bool DnsResolver::Resolve(const char *hostname, IpAddr *result) {
     if (g_dnsresolver_thread.Resolve(hostname, result, &token_)) {
       // add to cache
       cache_.push_back(Entry(hostname, *result));
-      RINFO("Resolved %s to %s%s", hostname, PrintIpAddr(*result, buf), "");
+      RINFO("Resolved %s to %s%s\n", hostname, PrintIpAddr(*result, buf), "");
       return true;
     }
     if (token_.is_cancelled())
       return false;
 
-    RINFO("Unable to resolve %s. Trying again in %d second(s)", hostname, retry_delays[retry_attempt_]);
+    RINFO("Unable to resolve %s. Trying again in %d second(s)\n", hostname, retry_delays[retry_attempt_]);
     if (!InterruptibleSleep(retry_delays[retry_attempt_] * 1000, &token_))
       return false;
 

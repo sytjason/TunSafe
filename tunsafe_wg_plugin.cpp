@@ -469,7 +469,7 @@ request_token:
         if (authenticated && code_out > reset_recovery_last_code_) {
           reset_recovery_last_code_ = code_out;
           if (reset_recovery_counter_++ == kAttemptsUntilLockoutRemoved - 1) {
-            RINFO("Account unlocked.");
+            RINFO("Account unlocked.\n");
             num_failures_ = 0;
             reset_recovery_counter_ = 0;
             token_bucket_ = kTokenBucketFull;
@@ -496,7 +496,7 @@ request_token:
           last_cksum_ = cksum;
           num_failures_ = authenticated ? 0 : num_failures_ + 1;
           if (num_failures_ == kAttemptsUntilLockout)
-            RINFO("Account locked because of %d failed login attempts.", num_failures_);
+            RINFO("Account locked because of %d failed login attempts.\n", num_failures_);
         }
       }
     }
