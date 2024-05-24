@@ -115,6 +115,9 @@ int memcmp_crypto(const uint8 *a, const uint8 *b, size_t n) {
 	QUARTER_ROUND(x, C(0, 3), C(1, 0), C(2, 1), C(3, 2)) \
 )
 
+#if SKIP_CHACHA
+#define TWENTY_ROUNDS(x)
+#else
 #define TWENTY_ROUNDS(x) ( \
 	DOUBLE_ROUND(x), \
 	DOUBLE_ROUND(x), \
@@ -127,6 +130,7 @@ int memcmp_crypto(const uint8 *a, const uint8 *b, size_t n) {
 	DOUBLE_ROUND(x), \
 	DOUBLE_ROUND(x) \
 )
+#endif
 
 SAFEBUFFERS static void chacha20_block_generic(struct chacha20_ctx *ctx, uint32 *stream)
 {
@@ -605,7 +609,6 @@ SAFEBUFFERS void chacha20poly1305_encrypt(uint8 *dst, const uint8 *src, const si
 					      const uint8 *ad, const size_t ad_len,
 					      const uint64 nonce, const uint8 key[CHACHA20POLY1305_KEYLEN]) {
   ChaChaState st;
-
   InitializeChaChaState(&st, key, nonce);
 	chacha20_crypt(&st.chacha20_state, st.block0, st.block0, sizeof(st.block0));
   chacha20_crypt(&st.chacha20_state, dst, src, (uint32)src_len);

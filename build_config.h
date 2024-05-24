@@ -70,6 +70,7 @@
 
 // For performance evaluation test
 #define FORCE_CPP_OLD 1
+#define SKIP_CHACHA 1
 
 #if (!defined(COMPILER_CLANG) && __cplusplus < 201103L) || (defined(FORCE_CPP_OLD) && FORCE_CPP_OLD)
 #define OLD_CPP 1

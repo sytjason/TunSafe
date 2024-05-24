@@ -13,6 +13,9 @@
 #include <time.h>
 #include <stdlib.h>
 typedef uint64 LARGE_INTEGER;
+
+size_t packet_size = 8192;
+uint64 max_bytes = 100 * 1024 * 1024;
 void QueryPerformanceCounter(LARGE_INTEGER *x) {
   struct timespec ts;
   if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
@@ -47,18 +50,17 @@ void QueryPerformanceFrequency(LARGE_INTEGER *x) {
 int gcm_self_test();
 
 
-
 void *fake_glb;
 void Benchmark() {
-  int64 a, b, f, t1 = 0, t2 = 0;
 
+  int64 a, b, f;
+  uint64 bytes;
+  QueryPerformanceFrequency((LARGE_INTEGER*)&f);
 #if WITH_AESGCM
   gcm_self_test();
 #endif  // WITH_AESGCM
 
   PrintCpuFeatures();
-
-  QueryPerformanceFrequency((LARGE_INTEGER*)&f);
 
   uint8 dst[1500 + 16];
   uint8 key[32] = {0, 1, 2, 3, 4, 5, 6};
@@ -66,33 +68,43 @@ void Benchmark() {
 
   fake_glb = dst;
 
-size_t max_bytes = 1000000000;
-#if defined(ARCH_CPU_ARM_FAMILY)
-  max_bytes = 100000000;
-#endif
-  auto RunOneBenchmark = [&](const char *name, const std::function<uint64(size_t)> &ff) {
-    uint64 bytes = 0;
-    QueryPerformanceCounter((LARGE_INTEGER*)&b);
-    size_t i;
-    for (i = 0; bytes < max_bytes; i++)
-      bytes += ff(i);
-    QueryPerformanceCounter((LARGE_INTEGER*)&a);
-    RINFO("%s: %f MB/s", name, (double)bytes * 0.000001 / (a - b) * f);
-  };
-
   memset(dst, 0, 1500);
-  RunOneBenchmark("chacha20-encrypt", [&](size_t i) -> uint64 { chacha20poly1305_encrypt(dst, dst, 1460, NULL, 0, i, key); return 1460; });
-  RunOneBenchmark("chacha20-decrypt", [&](size_t i) -> uint64 { chacha20poly1305_decrypt_get_mac(dst, dst, 1460, NULL, 0, i, key, mac); return 1460; });
+  bytes = 0;
+  size_t i;
+  RINFO("Benchmarking chacha20_encrypt...\n");
+  QueryPerformanceCounter((LARGE_INTEGER*)&b);
+  for (i = 0; bytes < max_bytes; i++) {
+    chacha20poly1305_encrypt(dst, dst, packet_size, NULL, 0, i, key);
+    bytes += packet_size;
+  }
+  QueryPerformanceCounter((LARGE_INTEGER*)&a); \
+  RINFO("%s: %f MB/s\n", "chacha20-encrypt", (double)bytes / (1024 * 1024) / (a - b) * f); \
 
-  RunOneBenchmark("poly1305-only", [&](size_t i) -> uint64 { poly1305_get_mac(dst, 1460, NULL, 0, i, key, mac); return 1460; });
+  bytes = 0;
+  QueryPerformanceCounter((LARGE_INTEGER*)&b);
+  for (i = 0; bytes < max_bytes; i++) {
+    chacha20poly1305_decrypt_get_mac(dst, dst, packet_size, NULL, 0, i, key, mac);
+    bytes += packet_size;
+  }
+  QueryPerformanceCounter((LARGE_INTEGER*)&a); \
+  RINFO("%s: %f MB/s\n", "chacha20-decrypt", (double)bytes / (1024 * 1024) / (a - b) * f); \
+
+  bytes = 0;
+  QueryPerformanceCounter((LARGE_INTEGER*)&b);
+  for (i = 0; bytes < max_bytes; i++) {
+    poly1305_get_mac(dst, packet_size, NULL, 0, i, key, mac);
+    bytes += packet_size;
+  }
+  QueryPerformanceCounter((LARGE_INTEGER*)&a); \
+  RINFO("%s: %f MB/s\n", "poly1305-only", (double)bytes / (1024 * 1024) / (a - b) * f); \
 
 #if WITH_AESGCM
   if (X86_PCAP_AES) {
     AesGcm128StaticContext sctx;
     CRYPTO_gcm128_init(&sctx, key, 128);
 
-    RunOneBenchmark("aes128-gcm-encrypt", [&](size_t i) -> uint64 { aesgcm_encrypt(dst, dst, 1460, NULL, 0, i, &sctx); return 1460; });
-    RunOneBenchmark("aes128-gcm-decrypt", [&](size_t i) -> uint64 { aesgcm_decrypt_get_mac(dst, dst, 1460, NULL, 0, i, &sctx, mac); return 1460; });
+    RunOneBenchmark("aes128-gcm-encrypt", [&](size_t i) -> uint64 { aesgcm_encrypt(dst, dst, packet_size, NULL, 0, i, &sctx); return packet_size; });
+    RunOneBenchmark("aes128-gcm-decrypt", [&](size_t i) -> uint64 { aesgcm_decrypt_get_mac(dst, dst, packet_size, NULL, 0, i, &sctx, mac); return packet_size; });
   }
 #endif   //  WITH_AESGCM
 }
