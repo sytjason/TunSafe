@@ -199,7 +199,7 @@ bool WireguardProcessor::ConfigureTun() {
   config.dns = dns_addr_;
 
   TunInterface::TunConfigOut config_out;
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   if (!tun_->Configure(config, &config_out))
 #else
   if (!tun_->Configure(std::move(config), &config_out))
@@ -602,7 +602,7 @@ void WireguardProcessor::RunAllMainThreadScheduled() {
     if (peer->marked_for_delete_)
       continue;
 
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
     uint32 ev = __sync_fetch_and_sub(&peer->main_thread_scheduled_, peer->main_thread_scheduled_);
 #else
     uint32 ev = peer->main_thread_scheduled_.exchange(0);

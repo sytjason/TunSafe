@@ -28,12 +28,12 @@ static const uint8 kWgInitChainingKey[WG_HASH_LEN] = {0x60,0xe2,0x6d,0xae,0xf3,0
 
 ReplayDetector::ReplayDetector() {
 // workaround for lack of atomic variable support
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   WG_ACQUIRE_LOCK(replay_mutex_);
 #endif
   expected_seq_nr_ = 0;
   memset(bitmap_, 0, sizeof(bitmap_));
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   WG_RELEASE_LOCK(replay_mutex_);
 #endif
 }
@@ -43,11 +43,11 @@ ReplayDetector::~ReplayDetector() {
 
 bool ReplayDetector::CheckReplay(uint64 seq_nr) {
   uint64 slot = seq_nr / BITS_PER_ENTRY;
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   WG_ACQUIRE_LOCK(replay_mutex_);
 #endif
   uint64 expected_seq_nr = expected_seq_nr_;
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   WG_RELEASE_LOCK(replay_mutex_);
 #endif
   if (seq_nr >= expected_seq_nr) {
@@ -58,11 +58,11 @@ bool ReplayDetector::CheckReplay(uint64 seq_nr) {
         bitmap_[(prev_slot + nn) & BITMAP_MASK] = 0;
       } while (--nn);
     }
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   WG_ACQUIRE_LOCK(replay_mutex_);
 #endif
     expected_seq_nr_ = seq_nr + 1;
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   WG_RELEASE_LOCK(replay_mutex_);
 #endif
   } else if (seq_nr + WINDOW_SIZE <= expected_seq_nr) {
@@ -412,7 +412,7 @@ void WgPeer::DelayedDelete(void *x) {
   WgPeer *peer = (WgPeer*)x;
   assert(peer->dev_->IsMainThread());
 
-#if !defined(__clang__) && __cplusplus >= 201103L
+#if defined(OLD_CPP)
   if (peer->main_thread_scheduled_ != 0) {
     WG_ACQUIRE_LOCK(peer->dev_->main_thread_scheduled_lock_);
 #else
@@ -426,7 +426,7 @@ void WgPeer::DelayedDelete(void *x) {
         break;
       }
     }
-#if !defined(__clang__) && __cplusplus >= 201103L
+#if defined(OLD_CPP)
     WG_RELEASE_LOCK(peer->dev_->main_thread_scheduled_lock_);
   }
 #else
@@ -1204,7 +1204,7 @@ void WgPeer::OnHandshakeFullyComplete() {
     for(size_t i = 0; i < WG_FEATURES_COUNT; i++)
       any_feature |= curr_keypair_->enabled_features[i];
     if (curr_keypair_->cipher_suite != 0 || any_feature) {
-      RINFO("Using %s%s%s%s%s%s%s", kCipherSuites[curr_keypair_->cipher_suite], 
+      RINFO("Using %s%s%s%s%s%s%s\n", kCipherSuites[curr_keypair_->cipher_suite], 
             curr_keypair_->enabled_features[WG_FEATURE_ID_SHORT_HEADER] ? ", short_header" : "",
             curr_keypair_->enabled_features[WG_FEATURE_ID_SHORT_MAC] ? ", mac64" : "",
             curr_keypair_->enabled_features[WG_FEATURE_ID_IPZIP] ? ", ipzip" : "",
@@ -1280,7 +1280,7 @@ uint32 WgPeer::CheckTimeouts_Locked(uint64 now) {
       }
     }
     if ((t & (1 << TIMER_ZERO_KEYS)) && (now32 - timer_value_[TIMER_ZERO_KEYS]) >= REJECT_AFTER_TIME_MS * 3) {
-      RINFO("Expiring all keys for peer");
+      RINFO("Expiring all keys for peer\n");
       t &= ~(1 << TIMER_ZERO_KEYS);
       ClearKeys_Locked();
       ClearHandshake_Locked();
@@ -1437,7 +1437,7 @@ bool WgPeer::AddCipher(int cipher) {
 
 void WgPeer::ScheduleNewHandshake() {
   // Note, it's possible that the peer has already been marked for delete
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   if (__sync_fetch_and_or(&main_thread_scheduled_, WgPeer::kMainThreadScheduled_ScheduleHandshake) == 0) {
 #else
   if (main_thread_scheduled_.fetch_or(WgPeer::kMainThreadScheduled_ScheduleHandshake) == 0) {

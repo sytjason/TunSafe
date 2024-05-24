@@ -2,7 +2,7 @@
 // Copyright (C) 2018 Ludvig Strigeus <info@tunsafe.com>. All Rights Reserved.
 #pragma once
 #include "tunsafe_types.h"
-#if defined(__clang__)
+#if !defined(OLD_CPP)
 #include <atomic>
 #endif
 #include <vector>
@@ -219,7 +219,7 @@ private:
   };
 
   struct CheckpointData {
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
     uint32 value;
 #else
     std::atomic<uint32> value;

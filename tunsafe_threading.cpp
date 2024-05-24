@@ -138,7 +138,7 @@ void MultithreadedDelayedDelete::Add(DoDeleteFunc *func, void *param) {
 }
 
 void MultithreadedDelayedDelete::Checkpoint(uint32 thread_id) {
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   table_[thread_id].value = 1;
 #else
   table_[thread_id].value.store(1);
@@ -148,7 +148,7 @@ void MultithreadedDelayedDelete::Checkpoint(uint32 thread_id) {
 void MultithreadedDelayedDelete::MainCheckpoint() {
   // Wait for all threads to signal that they reached the checkpoint
   for (size_t i = 0; i < num_threads_; i++) {
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
     if (table_[i].value == 0) {
 #else
     if (table_[i].value.load() == 0) {
@@ -159,7 +159,7 @@ void MultithreadedDelayedDelete::MainCheckpoint() {
 
   // All threads reached the checkpoint, clear the values
   for (size_t i = 0; i < num_threads_; i++)
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
     table_[i].value = 0;
 #else
     table_[i].value.store(0);

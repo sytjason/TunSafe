@@ -68,7 +68,7 @@ void PrintCpuFeatures() {
   if (X86_PCAP_AVX512F) s = strcpy_e(s, end, " avx512f");
   if (X86_PCAP_AVX512VL) s = strcpy_e(s, end, " avx512vl");
 
-  RINFO("Using:%s", capbuf);
+  RINFO("Using:%s\n", capbuf);
 }
 
 #endif  // defined(ARCH_CPU_X86_FAMILY)
@@ -86,6 +86,6 @@ void PrintCpuFeatures() {
 
   if (ARM_PCAP_NEON) s = strcpy_e(s, end, " neon");
 
-  RINFO("Using:%s", capbuf);
+  RINFO("Using:%s\n", capbuf);
 }
 #endif  // defined(ARCH_CPU_ARM_FAMILY)

@@ -68,6 +68,13 @@
 #error Please add support for your compiler in build/build_config.h
 #endif
 
+// For performance evaluation test
+#define FORCE_CPP_OLD 1
+
+#if (!defined(COMPILER_CLANG) && __cplusplus < 201103L) || (defined(FORCE_CPP_OLD) && FORCE_CPP_OLD)
+#define OLD_CPP 1
+#endif
+
 // Processor architecture detection.  For more info on what's defined, see:
 //   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
 //   http://www.agner.org/optimize/calling_conventions.pdf

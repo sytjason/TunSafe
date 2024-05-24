@@ -405,7 +405,7 @@ static bool IsIpv6AddressSet(const void *p) {
 }
 
 // Called to initialize tun
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
 bool TunsafeBackendBsd::Configure(const TunConfig &config, TunConfigOut *out) {
 #else
 bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) {
@@ -506,7 +506,7 @@ bool TunsafeBackendBsd::Configure(const TunConfig &&config, TunConfigOut *out) {
 
   RunPrePostCommand(config.pre_post_commands.post_up);
 
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   pre_down_ = config.pre_post_commands.pre_down;
   post_down_ = config.pre_post_commands.post_down;
 #else
@@ -554,10 +554,10 @@ void TunsafeBackendBsd::SetTunDeviceName(const char *name) {
 }
 
 static bool RunOneCommand(const std::string &cmd) {
-  RINFO("Run: %s", cmd.c_str());
+  RINFO("Run: %s\n", cmd.c_str());
   int exit_code = system(cmd.c_str());
   if (exit_code) {
-    RERROR("Run Failed (%d) : %s", exit_code, cmd.c_str());
+    RERROR("Run Failed (%d) : %s\n", exit_code, cmd.c_str());
     return false;
   }
   return true;
@@ -783,7 +783,7 @@ void TunsafeBackendBsdImpl::OnConnected() {
     }
     uint32 ipv4_ip = ipv4_addr ? ReadBE32(ipv4_addr->addr) : 0;
     char buf[kSizeOfAddress];
-    RINFO("Connection established. IP %s", ipv4_ip ? print_ip(buf, ipv4_ip) : "(none)");
+    RINFO("Connection established. IP %s\n", ipv4_ip ? print_ip(buf, ipv4_ip) : "(none)");
     is_connected_ = true;
   }
 }
@@ -791,7 +791,7 @@ void TunsafeBackendBsdImpl::OnConnected() {
 void TunsafeBackendBsdImpl::OnConnectionRetry(uint32 attempts) {
   if (is_connected_ && attempts >= 3) {
     is_connected_ = false;
-    RINFO("Reconnecting...");
+    RINFO("Reconnecting...\n");
   }
 }
 

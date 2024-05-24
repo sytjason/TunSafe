@@ -379,7 +379,7 @@ error:
 
 bool ParseWireGuardConfigFile(WireguardProcessor *wg, const char *filename, DnsResolver *dns_resolver) {
   std::string temp;
-  RINFO("Loading file: %s", filename);
+  RINFO("Loading file: %s\n", filename);
   if (!LoadFileWithMaximumSize(filename, &temp, 1024 * 1024)) {
     RERROR("Unable to open: %s", filename);
     return false;
@@ -443,7 +443,7 @@ void WgConfig::HandleConfigurationProtocolGet(WireguardProcessor *proc, std::str
   CmsgAppendFmt(result, "protocol_version=1");
 }
 
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
 bool WgConfig::HandleConfigurationProtocolMessage(WireguardProcessor *proc, const std::string &message, std::string *result) {
   std::string message_copy = message;
 #else

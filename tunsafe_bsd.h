@@ -40,7 +40,7 @@ public:
   void SetTunDeviceName(const char *name);
 
   // -- from TunInterface
-#if !defined(__clang__) && __cplusplus < 201103L
+#if defined(OLD_CPP)
   virtual bool Configure(const TunConfig &config, TunConfigOut *out);
 #else
   virtual bool Configure(const TunConfig &&config, TunConfigOut *out);
