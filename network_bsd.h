@@ -226,6 +226,8 @@ public:
 
 private:
   bool HandleEventsInner(int revents);
+  bool HandleStatsProtocolMessage();
+  std::string GetMessageType();
   WireguardProcessor *processor_;
   std::string inbuf_, outbuf_;
 };

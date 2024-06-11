@@ -388,17 +388,6 @@ bool ParseWireGuardConfigFile(WireguardProcessor *wg, const char *filename, DnsR
 }
 
 
-
-static void CmsgAppendFmt(std::string *result, const char *fmt, ...) {
-  va_list va;
-  char buf[256];
-  va_start(va, fmt);
-  vsnprintf(buf, sizeof(buf), fmt, va);
-  (*result) += buf;
-  (*result) += '\n';
-  va_end(va);
-}
-
 static void CmsgAppendHex(std::string *result, const char *key, const void *data, size_t data_size) {
   char *tmp = (char*)alloca(data_size * 2 + 2);
   PrintHexString(data, data_size, tmp + 1);

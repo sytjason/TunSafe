@@ -386,6 +386,7 @@ void ShowHelp() {
     "  genkey: Writes a new private key to stdout\n"
     "  genpsk: Writes a new preshared key to stdout\n"
     "  pubkey: Reads a private key from stdin and writes its public key to stdout\n"
+    "  stats: Dump statistics info for debugging\n"
     "To see more help about a subcommand, pass --help to it\n");
 }
 
@@ -468,7 +469,7 @@ static int ShowUserFriendlyForDevice(char *devname) {
   std::vector< std::pair<char*, char*> > kv;
   std::string ips;
 
-  if (!CommunicateWithService(devname, "get=1\n\n", &reply))
+  if (!CommunicateWithService(devname, "config:get=1\n\n", &reply))
     return 1;
 
   if (!ParseConfigKeyValue(&reply[0], &kv)) {
@@ -593,7 +594,7 @@ static int HandleShowCommand(int argc, char **argv) {
     SplitString(&interfaces_str[0], '\n', &interfaces);
 
     bool want_newline = false;
-      for (std::vector<char*>::iterator interfac = interfaces.begin(); interfac != interfaces.end(); interfac++) {
+    for (std::vector<char*>::iterator interfac = interfaces.begin(); interfac != interfaces.end(); interfac++) {
       if (want_newline)
         ansi_printf("\n");
       want_newline = true;
@@ -614,6 +615,26 @@ static int HandleShowCommand(int argc, char **argv) {
     return ShowUserFriendlyForDevice(argv[0]);
   }
   return 0;
+}
+
+static void HandleStatsCommand() {
+  std::string reply;
+  std::string interfaces_str;
+  std::vector<char*> interfaces;
+
+  if (!GetInterfaceList(&interfaces_str)) {
+    return;
+  }
+
+  SplitString(&interfaces_str[0], '\n', &interfaces);
+  for (std::vector<char*>::iterator interface = interfaces.begin(); interface != interfaces.end(); interface++) {
+    if (!CommunicateWithService(*interface, "stats:\n\n", &reply)) {
+      RERROR("communicate failed!\n");
+      return;
+    }
+    ansi_printf(ANSI_RESET ANSI_FG_GREEN ANSI_BOLD "interface" ANSI_RESET ": " ANSI_FG_GREEN "%s" ANSI_RESET "\n", *interface);
+    ansi_printf("%s", reply.c_str());
+  }
 }
 
 static void AppendCommand(std::string *result, const char *tag, const char *value) {
@@ -646,7 +667,7 @@ static int HandleSetCommand(int argc, char **argv) {
   char **argv_end = argv + argc;
   const char *interfc = *argv++;
   
-  command = "set=1\n";
+  command = "config:set=1\n";
 
   bool in_interface_section = true;
   bool in_peer_section = false;
@@ -876,6 +897,8 @@ start_usage:
     }
     curve25519_donna(key, key, kCurve25519Basepoint);
     ansi_printf("%s\n", base64_encode(key, 32, base64buf, sizeof(base64buf), NULL));
+  } else if (!strcmp(subcommand, "stats")) {
+    HandleStatsCommand();
   } else if (!strcmp(subcommand, "--help")) {
     ShowHelp();
   } else if (!strcmp(subcommand, "--version")) {

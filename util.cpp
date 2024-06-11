@@ -332,6 +332,16 @@ void OsGetRandomBytes(uint8 *data, size_t data_size) {
 #endif
 }
 
+void CmsgAppendFmt(std::string *result, const char *fmt, ...) {
+  va_list va;
+  char buf[256];
+  va_start(va, fmt);
+  vsnprintf(buf, sizeof(buf), fmt, va);
+  (*result) += buf;
+  (*result) += '\n';
+  va_end(va);
+}
+
 bool ParseConfigKeyValue(char *m, std::vector< std::pair<char*, char*> > *result) {
   for (;;) {
     char *nl = strchr(m, '\n');

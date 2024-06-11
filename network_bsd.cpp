@@ -6,6 +6,9 @@
 #include "util.h"
 
 #include <stdio.h>
+
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -733,6 +736,35 @@ static const char *FindMessageEnd(const char *start, size_t size) {
   return NULL;
 }
 
+std::string UnixDomainSocketChannelBsd::GetMessageType() {
+
+  if (inbuf_.empty()) {
+    return "";
+  }
+
+  const char *message = &inbuf_[0];
+  char *type = strchr(message, ':');
+  if (type == NULL) {
+    return "";
+  }
+
+  inbuf_ = std::string(type + 1, inbuf_.size() - (type - message + 1));
+
+  return std::string(message, size_t(type - message));
+}
+
+bool UnixDomainSocketChannelBsd::HandleStatsProtocolMessage() {
+  outbuf_.clear();
+  const WgProcessorStats stats = processor_->GetStats();
+  // // The amount of authenticated data received over the wireguard connection.
+  // uint64 packets_in, data_bytes_in, total_bytes_in;
+  CmsgAppendFmt(&outbuf_, "packets in: %" PRIu64 ", data in (Bytes): %" PRIu64 ", total bytes in: %" PRIu64, stats.packets_in, stats.data_bytes_in, stats.total_bytes_in);
+  CmsgAppendFmt(&outbuf_, "packets out: %" PRIu64 ", data out (Bytes): %" PRIu64 ", total bytes out: %" PRIu64, stats.packets_out, stats.data_bytes_out, stats.total_bytes_out);
+  CmsgAppendFmt(&outbuf_, "invalid packets in: %" PRIu64 ", invalid packets out: %" PRIu64, stats.invalid_packets_in, stats.invalid_bytes_in);
+  CmsgAppendFmt(&outbuf_, "data out speed: %f bps, data in speed: %f bps\n", stats.data_bytes_out_per_second * 8, stats.data_bytes_in_per_second * 8);
+  return true;
+}
+
 bool UnixDomainSocketChannelBsd::HandleEventsInner(int revents) {
   if (revents & POLLIN) {
     char buf[4096];
@@ -743,13 +775,22 @@ bool UnixDomainSocketChannelBsd::HandleEventsInner(int revents) {
     inbuf_.append(buf, n);
     const char *message_end = FindMessageEnd(&inbuf_[0], inbuf_.size());
     if (message_end) {
-      if (message_end != &inbuf_[inbuf_.size()])
+      if (message_end != &inbuf_[inbuf_.size()]){
         return false;  // trailing data?
+      }
+
+      std::string type = GetMessageType();
+      if (type == "config") {
 #if defined(OLD_CPP)
-      WgConfig::HandleConfigurationProtocolMessage(processor_, inbuf_, &outbuf_);
+          WgConfig::HandleConfigurationProtocolMessage(processor_, inbuf_, &outbuf_);
 #else
-      WgConfig::HandleConfigurationProtocolMessage(processor_, std::move(inbuf_), &outbuf_);
+          WgConfig::HandleConfigurationProtocolMessage(processor_, std::move(inbuf_), &outbuf_);
 #endif
+      } else if (type == "stats") {
+          HandleStatsProtocolMessage();
+      } else {
+          RERROR("invalid message type: %s\n", type.c_str());
+      }
       if (!outbuf_.size())
         return false;
       SetPollFlags(POLLOUT);
